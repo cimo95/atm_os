@@ -10,13 +10,16 @@ init python:
         global onKartuMasuk, angkaEntri
         if not onKartuMasuk:
             if persistent.onBlokir:
+                renpy.sound.play("efek/cetak.wav")
                 Show('layarBlokir')()
             else:
                 onKartuMasuk = True 
                 angkaEntri = ''
                 Show('layarInputPin')()
+                renpy.sound.play("efek/kartu.wav")
             Show('layarProses',isi='#####MOHON TUNGGU, SEDANG MEMBACA KARTU...')()
         else:
+            efekinterrupt(False)
             Show('confirm',message='Kartu sudah masuk !',yes_action=Hide('confirm'))()
     
     def tarikTunai(nominal):
@@ -28,16 +31,19 @@ init python:
                 modNominal = valNominal % persistent.kelipatan
                 if modNominal == 0:
                     persistent.saldo = persistent.saldo - valNominal
-                    batalkan()
-                    Show('layarProses',isi='MOHON TUNGGU, MENYELESAIKAN TRANSAKSI...')()
+                    batalkan(False)
+                    efekinterrupt(beres=0)
                 else:
                     onError = True
+                    efekinterrupt(False)
                     Show('layarError',isi='NOMINAL YANG ANDA PILIH#BUKAN KELIPATAN DARI#Rp.'+str(persistent.kelipatan))()
             else:
                 onError = True
+                efekinterrupt(False)
                 Show('layarError',isi='NOMINAL YANG ANDA PILIH#MELEBIHI TRANSAKSI MAKSIMAL#Rp.'+str(persistent.maks))()
         else:
             onError = True
+            efekinterrupt(False)
             Show('layarError',isi='NOMINAL YANG ANDA PILIH#MELEBIHI SALDO YANG ADA#Rp.'+str(persistent.saldo))()
         Show('layarProses',isi='#####MOHON TUNGGU, SEDANG MEMPROSES...')()
     
@@ -66,6 +72,7 @@ init python:
                 if dictRek.get(rek) == None:
                     resetEntri()
                     Show('layarMenuTransfer',hal=0)()
+                    efekinterrupt(False)
                     Show('layarError',isi='NOMOR REKENING TERSEBUT#TIDAK DITEMUKAN / TERDAFTAR')()
                     onError = True
                 else:
@@ -74,8 +81,10 @@ init python:
             except:
                 resetEntri()
                 Show('layarMenuTransfer',hal=0)()
+                efekinterrupt(False)
                 Show('layarError',isi='NOMOR REKENING TERSEBUT#TIDAK DITEMUKAN / TERDAFTAR')()
                 onError = True
+            efekinterrupt()
             Show('layarProses',isi='#####MOHON TUNGGU, SEDANG MEMERIKSA...')()
         elif nominal != -1:
             if nominal <= (persistent.saldo - persistent.saldoMin):
@@ -83,25 +92,36 @@ init python:
                 Show('layarSelesaiTrans',isi='TRANSAKSI TELAH BERHASIL DILAKUKAN')()
             else:
                 resetEntri()
+                efekinterrupt(False)
                 Show('layarError',isi='NOMINAL TRANSAKSI TIDAK CUKUP')()      
                 onError = True
+            efekinterrupt()
             Show('layarProses',isi='#####MOHON TUNGGU, SEDANG MEMPROSES...')()
         
     def isiEntri(angka):
-        global angkaEntri
-        if (not onError):
+        global angkaEntri, onKartuMasuk
+        if(not onKartuMasuk):
+            renpy.sound.play("efek/error.wav")
+            Show('confirm',message='Pastikan anda sudah memasukkan Kartu ATM sebelum melanjutkan.')()
+        elif (not onError):
             if (mode != 0) or ((mode == 0) and (len(angkaEntri) < 6)):
                 angkaEntri += angka
+            renpy.sound.play("efek/tombol.wav")
                 
     def nomEntri(tambah=True,mode='-1'):
-        global angkaEntri
-        if angkaEntri == '': angkaEntri = '0'
-        if tambah:
-            valEntri = int(angkaEntri) + persistent.kelipatan
+        global angkaEntri, onKartuMasuk
+        if(not onKartuMasuk):
+            renpy.sound.play("efek/error.wav")
+            Show('confirm',message='Pastikan anda sudah memasukkan Kartu ATM sebelum melanjutkan.')()
         else:
-            valEntri = int(angkaEntri) - persistent.kelipatan
-        if (valEntri <= persistent.maks) and (valEntri >= persistent.saldoMin) and (mode in [7,8]):
-            angkaEntri = str(valEntri)
+            if angkaEntri == '': angkaEntri = '0'
+            if tambah:
+                valEntri = int(angkaEntri) + persistent.kelipatan
+            else:
+                valEntri = int(angkaEntri) - persistent.kelipatan
+            if (valEntri <= persistent.maks) and (valEntri >= persistent.saldoMin) and (mode in [7,8]):
+                angkaEntri = str(valEntri)
+            renpy.sound.play("efek/tombol.wav")
 
     def tampilPin():
         pjgPin = len(angkaEntri)
@@ -115,13 +135,33 @@ init python:
         if not onError:
             angkaEntri = ''
 
+    def efekinterrupt(proses=True,beres=-1):
+        # renpy.sound.stop()
+        if proses:
+            if persistent.denganProses: 
+                renpy.sound.play("efek/proses.wav")
+                if beres == 0:
+                    renpy.sound.queue("efek/duit.wav")
+                    Show('layarProses',isi='MOHON TUNGGU, MENYELESAIKAN TRANSAKSI...')()
+                elif beres == 1:
+                    renpy.sound.queue("efek/cetak.wav")
+            elif beres == 0 :
+                renpy.sound.play("efek/duit.wav")
+            elif beres == 1 :
+                renpy.sound.play("efek/cetak.wav")
+
+        else:
+            renpy.sound.play("efek/error.wav")
+
     def konfirmasi(mode):
         global angkaEntri, kesempatan, onError
         if not onError:
             if mode == 0:
+                efekinterrupt()
                 Show('layarProses',isi='#####MOHON TUNGGU, SEDANG MEMPROSES...')()
                 if angkaEntri != persistent.pin:
                     if kesempatan != 0:
+                        efekinterrupt(False)
                         Show('layarError',isi='MASUKKAN PIN DENGAN BENAR#KESEMPATAN : '+str(kesempatan))()
                         angkaEntri =  ''
                         kesempatan -= 1
@@ -132,9 +172,11 @@ init python:
                 else:
                     Show('layarMenu')()
             elif mode == 1:
+                efekinterrupt()
                 Show('layarProses',isi='#####MOHON TUNGGU, SEDANG MEMPROSES...')()
                 if angkaEntri != persistent.pin:
                     if kesempatan != 0:
+                        efekinterrupt(False)
                         Show('layarError',isi='MASUKKAN PIN DENGAN BENAR#KESEMPATAN : '+str(kesempatan))()
                         angkaEntri =  ''
                         kesempatan -= 1
@@ -153,14 +195,16 @@ init python:
                 if angkaEntri != persistent.pinLama:
                     angkaEntri = ''
                     Show('layarMenuGantiPin',hal=1)()
+                    efekinterrupt(False)
                     Show('layarError',isi='PIN BARU TIDAK SESUAI,#PASTIKAN "PIN BARU"#DAN "KONFIRMASI PIN BARU" SAMA.')()
                     onError = True
                 else:
                     persistent.pin = angkaEntri
                     Show('layarSelesaiTrans',isi='PIN ANDA TELAH BERHASIL DIGANTI')()
+                    efekinterrupt()
                     Show('layarProses',isi='#####MOHON TUNGGU, SEDANG MENGGANTI PIN...')()
 
-    def batalkan():
+    def batalkan(efek=True):
         global onError
         if not persistent.onBlokir:
             if onError:
@@ -172,6 +216,8 @@ init python:
                 onKartuMasuk = False
                 onError = False
                 mode = -1
+                if efek:
+                    renpy.sound.play("efek/cetak.wav")
                 Show('layarAwal',selesai=True)()
 
     def resetSimulator():
@@ -183,29 +229,34 @@ init python:
         persistent.onBlokir = False
         onError = False
         kesempatan = 3
+        efekinterrupt(False)
         Show('confirm',message='Blokir telah dibuka. Simulasi bisa dilakukan kembali.')()
         
     def nilaiParam(id,nilai):
         if id == 0:
             if nilai < 100000:
+                efekinterrupt(False)
                 Show('confirm',message='Nominal saldo setidaknya 100000 (100 Ribu)')()
             else:
                 persistent.saldo = nilai
                 Show('layarAtur')()
         elif id == 1:
             if nilai < 10000:
+                efekinterrupt(False)
                 Show('confirm',message='Nominal saldo minimal setidaknya 10000 (10 Ribu)')()
             else:
                 persistent.saldoMin = nilai
                 Show('layarAtur')()
         elif id == 2:
             if nilai < 200000:
+                efekinterrupt(False)
                 Show('confirm',message='Nominal maksimal penarikan setidaknya 200000 (200 Ribu)')()
             else:
                 persistent.maks = nilai
                 Show('layarAtur')()
         elif id == 3:
             if not nilai in [20000,50000,100000]:
+                efekinterrupt(False)
                 Show('confirm',message='Nominal kelipatan hanya diperbolehkan\n20000 (20 Ribu), 50000 (50 Ribu) atau 100000 (100 Ribu)')()
             else:
                 persistent.kelipatan = nilai
@@ -233,8 +284,8 @@ screen tombol(tombol1='',tombol2='',tombol3='',tombol4='',tombol5='',tombol6='',
         
     vbox xpos 870 yalign 0.95 yanchor 1.0:
         textbutton 'MASUKKAN KARTU ATM' style 'fonTombol' text_style 'fonTombol' action Function(cekKartuATM)
-        textbutton 'ATUR SIMULATOR' style 'fonTombol' text_style 'fonTombol' action [SensitiveIf(mode != 2 and mode != 3),If(((mode != -1) and (not persistent.onBlokir)),true=Show('confirm',message='ATUR SIMULATOR hanya bisa diakses di halaman awal.\nSelesaikan atau batalkan transaksi terlebih dahulu.'),false=Show('layarAtur'))]
-        textbutton 'PENJELASAN' style 'fonTombol' text_style 'fonTombol' action Show('confirm',message=listPenjelasan[valPenjelasan])
+        textbutton 'ATUR SIMULATOR' style 'fonTombol' text_style 'fonTombol' action [SensitiveIf(not onKartuMasuk),If(onKartuMasuk,true=[Show('confirm',message='ATUR SIMULATOR hanya bisa diakses di halaman awal.\nSelesaikan atau batalkan transaksi terlebih dahulu.'),Function(efekinterrupt,proses=False)],false=Show('layarAtur'))]
+        textbutton 'PENJELASAN' style 'fonTombol' text_style 'fonTombol' action [Show('confirm',message=listPenjelasan[valPenjelasan]),Function(efekinterrupt,proses=False)]
         textbutton 'TENTANG' style 'fonTombol' text_style 'fonTombol' action Show('layarTentang')
         textbutton 'KELUAR' style 'fonTombol' text_style 'fonTombol' action Quit(confirm=True)
         null height 25
@@ -252,7 +303,7 @@ screen tombol(tombol1='',tombol2='',tombol3='',tombol4='',tombol5='',tombol6='',
             hotspot (15, 210, 60, 50) action Function(nomEntri,tambah=False,mode=mode)
             hotspot (90, 210, 60, 50) action Function(isiEntri,angka='0')
             hotspot (165, 210, 50, 50) action Function(nomEntri,mode=mode)
-            hotspot (240, 15, 105, 50) action Function(batalkan)
+            hotspot (240, 15, 105, 50) action [SensitiveIf(onKartuMasuk),If(onKartuMasuk,true=Function(batalkan),false=NullAction())]
             hotspot (240, 80, 105, 50) action Function(resetEntri)
             hotspot (225, 200, 130, 60) action [SensitiveIf(accept != NullAction()),accept]
 
@@ -276,7 +327,6 @@ screen layarAwal(selesai=False):
     zorder 80
     python:
         global mode, tgljam, valPenjelasan
-        mode = -1
         jeda = renpy.random.randint(1,5)
         balik = 10 + (5 - jeda)
         valPenjelasan = 1 if selesai else 2
@@ -326,12 +376,11 @@ screen layarProses(isi=''):
         python:
             if not persistent.denganProses:
                 Hide('layarProses')()
-            jeda = renpy.random.randint(1,5)
             isi = '#PT. BANK ORANG INDONESIA##'+isi
             listIsi=isi.split('#')
         for i in range(0,len(listIsi)):
             text listIsi[i] style 'fonMonitor'      
-    timer jeda action Hide('layarProses')
+    timer 4.5 action Hide('layarProses')
 
 screen layarSelesaiTrans(isi=''):
     tag layar
@@ -371,7 +420,7 @@ screen layarAtur:
     tombol2='<-- SALDO MINIMAL',aksi2=[SetVariable('angkaEntri',''),Show('layarAturUbah',id=1)],
     tombol3='<-- MAKS. PENARIKAN',aksi3=[SetVariable('angkaEntri',''),Show('layarAturUbah',id=2)],
     tombol4='<-- KELIPATAN',aksi4=[SetVariable('angkaEntri',''),Show('layarAturUbah',id=3)],
-    tombol5='BUKA BLOKIR -->',aksi5=If(persistent.onBlokir,true=Function(bukaBlokir),false=Show('confirm',message='Anda tidak sedang dalam status terblokir.')),
+    tombol5='BUKA BLOKIR -->',aksi5=If(persistent.onBlokir,true=Function(bukaBlokir),false=[Show('confirm',message='Anda tidak sedang dalam status terblokir.'),Function(efekinterrupt,proses=False)]),
     tombol6='SIM. PROSES -->',aksi6=If(persistent.denganProses,true=Show('confirm',message='Apakah anda tidak ingin mensimulasikan tampilan proses?\n\nJika ya, setiap kali proses transaksi dilakukan,\nhasil proses akan ditampilkan secara langsung.',yes_action=[SetField(persistent,'denganProses',False),Hide('confirm')],no_action=Hide('confirm')),false=Show('confirm',message='Apakah anda ingin mensimulasikan tampilan proses?\n\nJika ya, setiap kali proses transaksi dilakukan,\nmaka tampilan "sedang memproses..." akan ditampilkan\ndengan jeda waktu tertentu',yes_action=[SetField(persistent,'denganProses',True),Hide('confirm')],no_action=Hide('confirm'))),
     tombol7='RESET -->',aksi7=Show('confirm',message='Anda yakin ingin mereset simulator?\nSeluruh pengaturan dan nominal, akan dikembalikan ke nilai asal.',yes_action=[Hide('confirm'),Function(resetSimulator)],no_action=Hide('confirm')))
             
@@ -394,7 +443,7 @@ screen layarMenu():
     zorder 80
     use monitor('\nSILAHKAN PILIH JENIS TRANSAKSI#YANG ANDA INGINKAN########TEKAN "CANCEL"#UNTUK MEMBATALKAN TRANSAKSI')
     use tombol(tombol1='<-- GANTI PIN',aksi1=[Function(resetEntri),Show('layarMenuGantiPin')],
-    tombol5='INFORMASI SALDO -->', aksi5=[Show('layarMenuInfoSaldo'),Show('layarProses',isi='#####MOHON TUNGGU, SEDANG MEMPROSES...')],
+    tombol5='INFORMASI SALDO -->', aksi5=[Show('layarMenuInfoSaldo'),Show('layarProses',isi='#####MOHON TUNGGU, SEDANG MEMPROSES...'),Function(renpy.sound.play,"efek/proses.wav")],
     tombol6='TARIK TUNAI -->', aksi6=Show('layarMenuTarikTunai'),
     tombol7='TRANSFER -->', aksi7=[Function(resetEntri),Show('layarMenuTransfer')])
 

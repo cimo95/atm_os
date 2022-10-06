@@ -1,7 +1,7 @@
 ﻿define config.name = _("ATM_OS")
 define config.save_physical_size = False
 define gui.show_name = True
-define config.version = "1.0.35DB9"#'1.0-010622'
+define config.version = "1.1.35F4E"#'1.0-061022'
 define gui.about = _p("""
 """)
 define build.name = "ATM_OS"
